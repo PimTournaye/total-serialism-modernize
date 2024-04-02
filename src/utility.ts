@@ -148,22 +148,94 @@ function _fold(value: number, lo: number, hi: number): number {
 function _map(value: number, inLo: number, inHi: number, outLo: number, outHi: number): number {
 	return ((value - inLo) / (inHi - inLo)) * (outHi - outLo) + outLo;
 }
-export const bounce = fold; // alias
 
 /**
- * Performs linear interpolation (lerp) between two values or arrays.
- * Both input values/arrays can be single values or arrays.
- * The interpolation factor can be set as the third argument.
+ * Performs interpolation between two values or arrays using various modes.
  *
  * @param {number | number[]} a - The first input value or array.
  * @param {number | number[]} b - The second input value or array.
  * @param {number} [f = 0.5] - The interpolation factor (default is 0.5).
+ * @param {InterpolationMode} [mode = 'linear'] - The interpolation mode to use (default is 'linear').
  * @returns {number | number[]} The interpolated value or array.
  */
-export function lerp(a: number | number[] = 0, b: number | number[] = 0, f: number = 0.5): number | number[] {
-	return arrayCalc(a, b, (a, b) => a * (1 - f) + b * f);
+export function lerp(
+  a: number | number[] = 0,
+  b: number | number[] = 0,
+  f: number = 0.5,
+  mode: InterpolationMode = 'linear'
+): number | number[] {
+  return arrayCalc(a, b, (a, b) => interpolate(a, b, f, mode));
 }
-export const mix = lerp; // alias
+
+
+/**
+ * Interpolates between two values based on the specified mode.
+ *
+ * @param {number} a0 - The first value.
+ * @param {number} a1 - The second value.
+ * @param {number} t - The interpolation factor (between 0 and 1).
+ * @param {InterpolationMode} mode - The interpolation mode to use.
+ * @returns {number} The interpolated value.
+ */
+function interpolate(a0: number, a1: number, t: number, mode: InterpolationMode): number {
+  switch (mode) {
+    case 'none':
+      return a0;
+    case 'linear':
+      return linearInterpolate(a0, a1, t);
+    case 'cosine':
+      return cosineInterpolate(a0, a1, t);
+    case 'cubic':
+      return cubicInterpolate(a0, a1, t);
+    default:
+      throw new Error(`Invalid interpolation mode: ${mode}`);
+  }
+}
+
+/**
+ * Performs linear interpolation between two values.
+ *
+ * @param {number} a0 - The first value.
+ * @param {number} a1 - The second value.
+ * @param {number} t - The interpolation factor (between 0 and 1).
+ * @returns {number} The linearly interpolated value.
+ */
+function linearInterpolate(a0: number, a1: number, t: number): number {
+  return a0 + t * (a1 - a0);
+}
+
+/**
+ * Performs cosine interpolation between two values.
+ *
+ * @param {number} a0 - The first value.
+ * @param {number} a1 - The second value.
+ * @param {number} t - The interpolation factor (between 0 and 1).
+ * @returns {number} The cosine interpolated value.
+ */
+function cosineInterpolate(a0: number, a1: number, t: number): number {
+  const t2 = (1 - Math.cos(t * Math.PI)) / 2;
+  return a0 * (1 - t2) + a1 * t2;
+}
+
+/**
+ * Performs cubic interpolation between two values.
+ *
+ * @param {number} a0 - The first value.
+ * @param {number} a1 - The second value.
+ * @param {number} t - The interpolation factor (between 0 and 1).
+ * @returns {number} The cubic interpolated value.
+ */
+function cubicInterpolate(a0: number, a1: number, t: number): number {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return a0 * (2 * t3 - 3 * t2 + 1) + a1 * (-2 * t3 + 3 * t2);
+}
+
+/**
+ * Interpolation mode types.
+ */
+export type InterpolationMode = 'none' | 'linear' | 'cosine' | 'cubic';
+
 
 /**
  * Performs an arithmetic operation on two values or arrays.
@@ -202,6 +274,31 @@ export function arrayCalc(a: number | number[], b: number | number[], operation:
 	const right: number = b;
 	const result = left.map(x => arrayCalc(x, right, operation) as number);
 	return result;
+}
+
+/**
+ * Alternate through 2 or multiple lists consecutively
+ * The output length is the lowest common denominator of the input lists
+ * so that every combination of consecutive values is included.
+ * 
+ * @param {Array<T[]>} ...arrs - arrays to interweave
+ * @return {T[][]} - outputs a 2D array of the results
+ * 
+ * @template T - the type of the elements in the input arrays
+ */
+export function arrayCombinations<T>(...arrs: Array<T[]>): T[][] {
+	// make sure all values are array
+	arrs = arrs.map(a => toArray(a));
+	// the output is the unique list sizes multiplied
+	const sizes: number[] = unique(arrs.map(a => a.length));
+	let iters: number = 1;	
+	sizes.forEach((l) => iters *= l);
+	// iterate over the total amount pushing the items to array
+	const arr: T[][] = [];
+	for (let i = 0; i < iters; i++){
+		arr.push(arrs.map((e) => e[i % e.length] ));
+	}
+	return arr;
 }
 
 /**
@@ -320,7 +417,7 @@ export function sum(a: number[] = [0]): number {
  * @param {number[]} a - The input array.
  * @returns {number} The maximum value in the array.
  */
-function maximum(a: number[] = [0]): number {
+export function maximum(a: number[] = [0]): number {
 	if (!Array.isArray(a)) return a;
 	return Math.max(...flatten(a));
 }
@@ -330,7 +427,7 @@ function maximum(a: number[] = [0]): number {
  * @param {number[]} a - The input array.
  * @returns {number} The minimum value in the array.
  */
-function minimum(a: number[] = [0]): number {
+export function minimum(a: number[] = [0]): number {
 	return !Array.isArray(a) ? a : Math.min(...flatten(a));
 }
 
@@ -341,7 +438,7 @@ function minimum(a: number[] = [0]): number {
  * @param {number | number[]} a - The input value or array.
  * @returns {number | number[]} The normalized value or array.
  */
-function normalize(a: number | number[] = [0]): number | number[] {
+export function normalize(a: number | number[] = [0]): number | number[] {
 	if (!Array.isArray(a)) a = toArray(a);
 	const min = minimum(a);
 	const range = maximum(a) - min;
