@@ -7,515 +7,434 @@
 // Utility functions
 //====================================================================
 
-const chart = require('asciichart');
+import { plot as asciichart, PlotConfig } from 'asciichart';
 
-const HALF_PI = Math.PI / 2.0;
-const TWO_PI = Math.PI * 2.0;
-const PI = Math.PI;
+export const HALF_PI: number = Math.PI / 2.0;
+export const TWO_PI: number = Math.PI * 2.0;
+export const PI: number = Math.PI;
 
-exports.HALF_PI = HALF_PI;
-exports.TWO_PI = TWO_PI;
-exports.PI = PI;
-
-// check if the value is an array or not
-// if not transform into an array and output
-//
-// @param {Value} -> input to be checked
-// @return {Array} -> the input as an array
-//
-function toArray(a){
+/**
+ * Converts the input to an array if it is not already an array.
+ *
+ * @param {any} a - The input to be converted to an array.
+ * @return {Array} - The input converted to an array, or the input itself if it is already an array.
+ */
+export function toArray(a: any): Array<any> {
 	return Array.isArray(a) ? a : [a];
 }
-exports.toArray = toArray;
 
-// check if the value is an array or not
-// if it is an array output the first value
-// 
-// @param {Value} -> intput to be checked
-// @param {Int+} -> index to return from Array (optional, default=0)
-// @return {Value} -> single value output
-//
-function fromArray(a, i=0){
+/**
+ * Retrieves the value from an array at a specified index, or the value itself if it is not an array.
+ *
+ * @param {any|Array} a - The value or array to retrieve a value from.
+ * @param {number} [i=0] - The index of the array to retrieve a value from. Default is 0.
+ * @return {any} - The value from the array at the specified index, or the value itself if it is not an array.
+ */
+export function fromArray(a: any | any[], i: number = 0): any {
 	return Array.isArray(a) ? a[i] : a;
 }
-exports.fromArray = fromArray;
 
-// Return the length/size of an array if the argument is an array
-// if argument is a number return the number as integer
-// if argument is not a number return 1
-// The method can be used to input arrays as arguments for other functions
-// 
-// @param {Value/Array} -> input value to check
-// @return {Int} -> the array length
-// 
-function length(a){
-	if (Array.isArray(a)){
-		// return array length if argument is array
-		return a.length;
+/**
+ * Returns the length of an array, or 1 if the input is not an array.
+ * If the input is a number, it returns the integer value.
+ *
+ * @param {Array | number | unknown} input - The value to check.
+ * @return {number} The length of the array, or 1 if the input is not an array.
+ * If the input is a number, it returns the integer value.
+ */
+export function length(input: Array<any> | number | unknown): number {
+	if (Array.isArray(input)) return input.length;
+	else return 1;
+}
+export const size = length; // alias
+
+/**
+ * Wraps a value between a low and high range.
+ * Similar to modulo operation, but the low range is also adjustable.
+ *
+ * @param {number | number[]} input - The input value or an array of values.
+ * @param {number} [lo = 12] - The minimum value (default is 12).
+ * @param {number} [hi = 0] - The maximum value (default is 0).
+ * @returns {number | number[]} The remainder after division, or an array of remainders.
+ */
+export function wrap(input: number | number[] = 0, lo: number = 12, hi: number = 0): number | number[] {
+	// Swap lo and hi if lo is greater than hi
+	if (lo > hi) [lo, hi] = [hi, lo];
+	// If input is not an array, wrap the single value
+	if (!Array.isArray(input)) return _wrap(input, lo, hi);
+	// Map over the array and wrap each value
+	const wrappedArray = input.map((value) => _wrap(value, lo, hi));
+	return wrappedArray;
+}
+
+/**
+ * Helper function to wrap a single value between a low and high range.
+ *
+ * @param {number} value - The input value.
+ * @param {number} lo - The minimum value.
+ * @param {number} hi - The maximum value.
+ * @returns {number} The remainder after division.
+ */
+function _wrap(value: number, lo: number, hi: number): number {
+	const range = hi - lo;
+	return ((((value - lo) % range) + range) % range) + lo;
+}
+
+/**
+ * Constrains a value or an array of values between a low and high range.
+ *
+ * @param {number | number[]} input - The input value or an array of values to constrain.
+ * @param {number} [lo = 12] - The minimum value (default is 12).
+ * @param {number} [hi = 0] - The maximum value (default is 0).
+ * @returns {number | number[]} The constrained value or an array of constrained values.
+ */
+export function constrain(input: number | number[] = 0, lo: number = 12, hi: number = 0): number | number[] {
+	// Swap lo and hi if lo is greater than hi
+	if (lo > hi) [lo, hi] = [hi, lo];
+	// If input is not an array, constrain the single value
+	if (!Array.isArray(input)) return Math.min(hi, Math.max(lo, input));
+	// Map over the array and constrain each value
+	const constrainedArray = input.map((value) => Math.min(hi, Math.max(lo, value)));
+	return constrainedArray;
+}
+// Export aliases for constrain
+export const bound = constrain;
+export const clip = constrain;
+export const clamp = constrain;
+
+/**
+ * Folds a value or an array of values between a low and high range.
+ * When the value exceeds the range, it is folded inwards, creating a "bouncing" effect against the boundaries.
+ *
+ * @param {number | number[]} input - The input value or an array of values to fold.
+ * @param {number} [lo = 12] - The minimum value (default is 12).
+ * @param {number} [hi = 0] - The maximum value (default is 0).
+ * @returns {number | number[]} The folded value or an array of folded values.
+ */
+export function fold(input: number | number[] = 0, lo: number = 12, hi: number = 0): number | number[] {
+	// Swap lo and hi if lo is greater than hi
+	if (lo > hi) [lo, hi] = [hi, lo];
+	// If input is not an array, fold the single value
+	if (!Array.isArray(input)) return _fold(input, lo, hi);
+	// Map over the array and fold each value
+	const foldedArray = input.map((value) => _fold(value, lo, hi));
+	return foldedArray;
+}
+
+/**
+ * Helper function to fold a single value between a low and high range.
+ *
+ * @param {number} value - The input value to fold.
+ * @param {number} lo - The minimum value.
+ * @param {number} hi - The maximum value.
+ * @returns {number} The folded value.
+ */
+function _fold(value: number, lo: number, hi: number): number {
+	value = _map(value, lo, hi, -1, 1);
+	value = Math.asin(Math.sin(value * HALF_PI)) / HALF_PI;
+	return _map(value, -1, 1, lo, hi);
+}
+
+/**
+ * Maps a value from one range to another.
+ *
+ * @param {number} value - The input value to map.
+ * @param {number} inLo - The minimum value of the input range.
+ * @param {number} inHi - The maximum value of the input range.
+ * @param {number} outLo - The minimum value of the output range.
+ * @param {number} outHi - The maximum value of the output range.
+ * @returns {number} The mapped value.
+ */
+function _map(value: number, inLo: number, inHi: number, outLo: number, outHi: number): number {
+	return ((value - inLo) / (inHi - inLo)) * (outHi - outLo) + outLo;
+}
+export const bounce = fold; // alias
+
+/**
+ * Performs linear interpolation (lerp) between two values or arrays.
+ * Both input values/arrays can be single values or arrays.
+ * The interpolation factor can be set as the third argument.
+ *
+ * @param {number | number[]} a - The first input value or array.
+ * @param {number | number[]} b - The second input value or array.
+ * @param {number} [f = 0.5] - The interpolation factor (default is 0.5).
+ * @returns {number | number[]} The interpolated value or array.
+ */
+export function lerp(a: number | number[] = 0, b: number | number[] = 0, f: number = 0.5): number | number[] {
+	return arrayCalc(a, b, (a, b) => a * (1 - f) + b * f);
+}
+export const mix = lerp; // alias
+
+/**
+ * Performs an arithmetic operation on two values or arrays.
+ *
+ * @param {number | number[]} a - The first input value or array.
+ * @param {number | number[]} b - The second input value or array.
+ * @param {Function} operation - The arithmetic operation to perform.
+ * @returns {number | number[]} The result of the operation.
+ * 
+ * @example arrayCalc([1, 2, 3], [4, 5, 6], (a, b) => a + b) => [5, 7, 9]
+ * arrayCalc([0, 1, [2, 3]], [[5, 7], 10], (a,b) => { return (a+b)/2 }) => [ [ 2.5, 3.5 ], 5.5, [ 3.5, 5 ] ]
+ * arrayCalc([10, 2, 1, 5], [4, 9, 7, 3], (a,b) => { return Math.max(a,b) }) => [ 10, 9, 7, 5 ] 
+ */
+export function arrayCalc(a: number | number[], b: number | number[], operation: (a: number, b: number) => number): number | number[] {
+	// If the right-hand input is an array
+	if (Array.isArray(b)) {
+		const right: number[] = b;
+		// Convert the left-hand input to an array if it's not already
+		const left: number[] = toArray(a);
+		// Initialize an empty result array
+		let result: number[] = [];
+		// Determine the length of the longest input array
+		let length = Math.max(left.length, right.length);
+		// Iterate over the indices of the arrays
+		result = Array.from({ length: length }, (_, i) => operation(fromArray(left, i % left.length), fromArray(right, i % right.length)));
+		return result;
 	}
-	// else return 1 if NaN or positive integer if Number
-	return isNaN(a) ? 1 : Math.max(1, Math.floor(a));
-}
-exports.length = length;
-exports.size = length;
-
-// Wrap a value between a low and high range
-// Similar to mod, expect the low range is also adjustable
-// 
-// @param {Number/Array} -> input value
-// @param {Number} -> minimum value optional, (default=12)
-// @param {Number} -> maximum value optional, (default=0)
-// @return {Number} -> remainder after division
-// 
-function wrap(a=0, lo=12, hi=0){
-	// swap if lo > hi
-	if (lo > hi){ var t=lo, lo=hi, hi=t; }
-	// calculate range and wrap the values
-	if (!Array.isArray(a)){
-		return _wrap(a, lo, hi);
+	// If both inputs are not arrays
+	if (!Array.isArray(a)) {
+		// Apply the function to the inputs
+		const result = operation(a, b);
+		return result;
 	}
-	return a.map(x => wrap(x, lo, hi));
-}
-exports.wrap = wrap;
-
-function _wrap(a, lo, hi){
-	let r = hi - lo;
-	return ((((a - lo) % r) + r) % r) + lo;
+	// If the left-hand input is an array and the right-hand input is not
+	const left: number[] = a;
+	const right: number = b;
+	const result = left.map(x => arrayCalc(x, right, operation) as number);
+	return result;
 }
 
-// Constrain a value between a low and high range
-// 
-// @param {Number/Array} -> number to constrain
-// @param {Number} -> minimum value (optional, default=12)
-// @param {Number} -> maximum value (optional, default=0)
-// @return {Number} -> constrained value
-// 
-function constrain(a=0, lo=12, hi=0){
-	// swap if lo > hi
-	if (lo > hi){ var t=lo, lo=hi, hi=t; }
-	// constrain the values
-	if (!Array.isArray(a)){
-		return Math.min(hi, Math.max(lo, a));
-	}
-	return a.map(x => constrain(x, lo, hi));
-}
-exports.constrain = constrain;
-exports.bound = constrain;
-exports.clip = constrain;
-exports.clamp = constrain;
-
-// Fold a between a low and high range
-// When the value exceeds the range it is folded inwards
-// Has the effect of "bouncing" against the boundaries
-// 
-// @param {Number/Array} -> number to fold
-// @param {Number} -> minimum value (optional, default=12)
-// @param {Number} -> maximum value (optional, default=0)
-// @return {Number} -> folder value
-// 
-function fold(a=0, lo=12, hi=0){
-	// swap if lo > hi
-	if (lo > hi){ var t=lo, lo=hi, hi=t; }
-	// fold the values
-	if (!Array.isArray(a)){
-		return _fold(a, lo, hi);
-	}
-	return a.map(x => fold(x, lo, hi));
-}
-exports.fold = fold;
-exports.bounce = fold;
-
-function _fold(a, lo, hi){
-	a = _map(a, lo, hi, -1, 1);
-	a = Math.asin(Math.sin(a * HALF_PI)) / HALF_PI;
-	return _map(a, -1, 1, lo, hi);
+/**
+ * Adds two values or arrays.
+ *
+ * @param {number | number[]} a - The first input value or array.
+ * @param {number | number[]} b - The second input value or array.
+ * @returns {number | number[]} The sum of the inputs.
+ */
+export function add(a: number | number[] = 0, b: number | number[] = 0): number | number[] {
+	return arrayCalc(a, b, (a, b) => a + b);
 }
 
-// Map/scale a value or array from one input-range 
-// to a given output-range
-// 
-// @param {Number/Array} -> value to be scaled
-// @param {Number} -> input low
-// @param {Number} -> input high
-// @param {Number} -> output low
-// @param {Number} -> output high
-// @param {Number} -> exponent (optional, default=1)
-// @return {Number/Array}
-// 
-function map(a=0, ...params){
-	if (!Array.isArray(a)){
-		return _map(a, ...params);
-	}
-	return a.map(x => map(x, ...params));
-}
-exports.map = map;
-exports.scale = map;
-
-function _map(a, inLo=0, inHi=1, outLo=0, outHi=1, exp=1){
-	a = (a - inLo) / (inHi - inLo);
-	if (exp != 1){
-		var sign = (a >= 0.0) ? 1 : -1;
-		a = Math.pow(Math.abs(a), exp) * sign;
-	}
-	return a * (outHi - outLo) + outLo;
+/**
+ * Subtracts two values or arrays.
+ *
+ * @param {number | number[]} a - The first input value or array.
+ * @param {number | number[]} b - The second input value or array.
+ * @returns {number | number[]} The difference of the inputs.
+ */
+export function subtract(a: number | number[] = 0, b: number | number[] = 0): number | number[] {
+	return arrayCalc(a, b, (a, b) => a - b);
 }
 
-// Lerp (Linear interpolation) two values or arrays
-// Both sides can be a single value or an array
-// Set the interpolation factor as third argument
-// 
-// @param {Number/Array} -> input 1 to be mixed
-// @param {Number/Array} -> input 2 to be mixed
-// @param {Number} -> interpolation factor (optional, default=0.5)
-// @return {Number/Array}
-// 
-function lerp(a=0, v=0, f=0.5){
-	return arrayCalc(a, v, (a, b) => { return a * (1 - f) + b * f });
+/**
+ * Multiplies two values or arrays.
+ *
+ * @param {number | number[]} a - The first input value or array.
+ * @param {number | number[]} b - The second input value or array.
+ * @returns {number | number[]} The product of the inputs.
+ */
+export function multiply(a: number | number[] = 0, b: number | number[] = 1): number | number[] {
+	return arrayCalc(a, b, (a, b) => a * b);
 }
-exports.lerp = lerp;
-exports.mix = lerp;
 
-// add 1 or more values to an array, 
-// preserves listlength of first argument
-// arguments are applied sequentially
-// 
-// @param {Number/Array} -> input to be added to
-// @param {Number/Array} -> value to add
-// @return {Number/Array}
-// 
-function add(a=0, v=0){
-	return arrayCalc(a, v, (a, b) => { return a + b });
+/**
+ * Divides two values or arrays.
+ *
+ * @param {number | number[]} a - The first input value or array.
+ * @param {number | number[]} b - The second input value or array.
+ * @returns {number | number[]} The quotient of the inputs.
+ */
+export function divide(a: number | number[] = 0, b: number | number[] = 1): number | number[] {
+	return arrayCalc(a, b, (a, b) => a / b);
 }
-exports.add = add;
 
-// subtract 1 or more values from an array
-// preserves listlength of first argument
-// arguments are applied sequentially
-// 
-// @param {Number/Array} -> input to be subtracted from
-// @param {Number/Array} -> value to subtract
-// @return {Number/Array}
-// 
-function subtract(a=0, v=0){
-	return arrayCalc(a, v, (a, b) => { return a - b });
+/**
+ * Calculates the remainder after division of two values or arrays.
+ *
+ * @param {number | number[]} a - The first input value or array.
+ * @param {number | number[]} b - The second input value or array.
+ * @returns {number | number[]} The remainder after division.
+ */
+export function mod(a: number | number[] = 0, b: number | number[] = 12): number | number[] {
+	return arrayCalc(a, b, (a, b) => ((a % b) + b) % b);
 }
-exports.subtract = subtract;
-exports.sub = subtract;
 
-// multiply 1 or more values from an array
-// preserves listlength of first argument
-// arguments are applied sequentially
-// 
-// @param {Number/Array} -> input to be multiplied
-// @param {Number/Array} -> value to multiply with
-// @return {Number/Array}
-// 
-function multiply(a=0, v=1){
-	return arrayCalc(a, v, (a, b) => { return a * b });
+/**
+ * Raises a value or array to the power of another value or array.
+ *
+ * @param {number | number[]} a - The base value or array.
+ * @param {number | number[]} b - The exponent value or array.
+ * @returns {number | number[]} The result of the power operation.
+ */
+export function pow(a: number | number[] = 0, b: number | number[] = 1): number | number[] {
+	return arrayCalc(a, b, (a, b) => Math.pow(a, b));
 }
-exports.multiply = multiply;
-exports.mult = multiply;
-exports.mul = multiply;
 
-// divide 1 or more values from an array
-// preserves listlength of first argument
-// arguments are applied sequentially
-// 
-// @param {Number/Array} -> input to be divided
-// @param {Number/Array} -> value to divide with
-// @return {Number/Array}
-// 
-function divide(a=0, v=1){
-	return arrayCalc(a, v, (a, b) => { return a / b });
+/**
+ * Calculates the square root of a value or array.
+ *
+ * @param {number | number[]} a - The input value or array.
+ * @returns {number | number[]} The square root of the input.
+ */
+export function sqrt(a: number | number[] = 0): number | number[] {
+	return arrayCalc(a, 0, (a) => Math.sqrt(a));
 }
-exports.divide = divide;
-exports.div = divide;
 
-// Return the remainder after division
-// also works in the negative direction, so wrap starts at 0
-// 
-// @param {Int/Array} -> input value
-// @param {Int/Array} -> divisor (optional, default=12)
-// @return {Int/Array} -> remainder after division
-// 
-function mod(a=0, v=12){
-	return arrayCalc(a, v, (a, b) => { return ((a % b) + b) % b });
-}
-exports.mod = mod;
-
-// Raise a value of one array to the power of the value
-// from the right hand array
-// 
-// @param {Number/Array} -> base
-// @param {Number/Array} -> exponent 
-// @return {Number/Array} -> result from function
-// 
-function pow(a=0, v=1){
-	return arrayCalc(a, v, (a, b) => { return Math.pow(a, b) });
-}
-exports.pow = pow;
-
-// Return the squareroot of an array of values
-// 
-// @param {Number/Array} -> values
-// @return {Number/Array} -> result
-// 
-function sqrt(a=0){
-	return arrayCalc(a, 0, (a) => { return Math.sqrt(a) });
-}
-exports.sqrt = sqrt;
-
-// Evaluate a function for a multi-dimensional array
-// 
-// @params {Array|Number} -> left hand input array
-// @params {Array|Number} -> right hand input array
-// @params {Function} -> function to evaluate
-// @return {Array|Number} -> result of evaluation
-// 
-function arrayCalc(a=0, v=0, func=()=>{return a;}){
-	// if righthand side is array
-	if (Array.isArray(v)){
-		a = toArray(a);
-		let l1 = a.length, l2 = v.length, r = [];
-		let l = Math.max(l1, l2);
-		for (let i=0; i<l; i++){
-			r[i] = arrayCalc(a[i % l1], v[i % l2], func);
-		}
-		return r;
-	}
-	// if both are single values
-	if (!Array.isArray(a)){
-		let r = func(a, v);
-		if (!isNaN(a) && !isNaN(v)){
-			return isNaN(r)? 0 : r;
-		}
-		return r;
-	}
-	// if lefthand side is array
-	return a.map(x => arrayCalc(x, v, func));
-}
-exports.arrayCalc = arrayCalc;
-
-// Alternate through 2 or multiple lists consecutively
-// The output length is the lowest common denominator of the input lists
-// so that every combination of consecutive values is included
-// This function is used to allow arrays as input for Generators
-// And for the step function for algorithmic composition
-//
-// @param {Array0, Array1, ..., Array-n} -> arrays to interleave
-// @return {Array} -> outputs a 2D array of the results
-//
-function arrayCombinations(...arrs){
-	// make sure all values are array
-	arrs = arrs.map(a => toArray(a));
-	// the output is the unique list sizes multiplied
-	let sizes = unique(arrs.map(a => a.length));
-	let iters = 1;	
-	sizes.forEach((l) => iters *= l);
-	// iterate over the total amount pushing the items to array
-	let arr = [];
-	for (let i=0; i<iters; i++){
-		arr.push(arrs.map((e) => e[i % e.length] ));
-	}
-	return arr;
-}
-exports.arrayCombinations = arrayCombinations;
-
-// flatten a multidimensional array. Optionally set the depth
-// for the flattening
-//
-// @param {Array} -> array to flatten
-// @param {Number} -> depth of flatten
-// @return {Array} -> flattened array
-//
-function flatten(a=[0], depth=Infinity){
+/**
+ * Flattens a multi-dimensional array to the specified depth.
+ *
+ * @param {any[]} a - The input array.
+ * @param {number} [depth=Infinity] - The depth to which the array should be flattened (default is Infinity).
+ * @returns {any[]} The flattened array.
+ */
+export function flatten(a: any[] = [0], depth: number = Infinity): any[] {
 	return toArray(a).flat(depth);
 }
-exports.flatten = flatten;
-exports.flat = flatten;
 
-// Truncate all the values in an array towards 0,
-// sometimes referred to as rounding down
-// 
-// @param {Number/Array} -> input value
-// @return {Int/Array} -> trucated value
-function truncate(a=[0]){
-	if (!Array.isArray(a)){
-		return Math.trunc(a);
-	}
-	return a.map(x => truncate(x));
+/**
+ * Truncates all the values in an array towards zero.
+ *
+ * @param {number | number[]} a - The input value or array.
+ * @returns {number | number[]} The truncated value or array.
+ */
+export function truncate(a: number | number[] = [0]): number | number[] {
+	if (!Array.isArray(a)) return Math.trunc(a);
+	return a.map(x => Math.trunc(x));
 }
-exports.truncate = truncate;
-exports.trunc = truncate;
-exports.int = truncate;
 
-// Return the sum of all values in the array
-// Ignore all non numeric values
-// Works with multidimensional arrays by flattening first
-// 
-// @param {Array} -> input array
-// @return {Number} -> summed array
-//
-function sum(a=[0]){
+/**
+ * Calculates the sum of all values in the input array.
+ *
+ * @param {number[]} a - The input array.
+ * @returns {number} The sum of all values in the array.
+ */
+export function sum(a: number[] = [0]): number {
 	let s = 0;
-	flatten(toArray(a)).forEach((v) => {
-		s += isNaN(v) ? 0 : v;
-	});
+	flatten(toArray(a)).forEach((v) => s += isNaN(v) ? 0 : v);
 	return s;
 }
-exports.sum = sum;
 
-// Return the biggest value from an array
-// 
-// @param {NumberArray} -> input array
-// @return {Number} -> biggest value
-// 
-function maximum(a=[0]){
-	if (!Array.isArray(a)) { return a; }
+/**
+ * Returns the maximum value from an array.
+ *
+ * @param {number[]} a - The input array.
+ * @returns {number} The maximum value in the array.
+ */
+function maximum(a: number[] = [0]): number {
+	if (!Array.isArray(a)) return a;
 	return Math.max(...flatten(a));
 }
-exports.maximum = maximum;
-exports.max = maximum;
-
-// Return the lowest value from an array
-// 
-// @param {NumberArray} -> input array
-// @return {Number} -> lowest value
-// 
-function minimum(a=[0]){
-	if (!Array.isArray(a)) { return a; }
-	return Math.min(...flatten(a));
+/**
+ * Returns the minimum value from an array.
+ *
+ * @param {number[]} a - The input array.
+ * @returns {number} The minimum value in the array.
+ */
+function minimum(a: number[] = [0]): number {
+	return !Array.isArray(a) ? a : Math.min(...flatten(a));
 }
-exports.minimum = minimum;
-exports.min = minimum;
 
-// Normalize all the values in an array between 0. and 1.
-// The highest value will be 1, the lowest value will be 0.
-// 
-// @param {Number/Array} -> input values
-// @return {Number/Array} -> normalized values
-// 
-function normalize(a=[0]){
-	// get minimum and maximum
-	let min = minimum(a);
-	let range = maximum(a) - min;
-	// if range 0 then range = min and min = 0
-	if (!range) { range = min, min = 0; }
-	// normalize and return
-	return divide(subtract(a, min), range);
+/**
+ * Normalizes all the values in an array between 0 and 1.
+ * The highest value will be 1, and the lowest value will be 0.
+ *
+ * @param {number | number[]} a - The input value or array.
+ * @returns {number | number[]} The normalized value or array.
+ */
+function normalize(a: number | number[] = [0]): number | number[] {
+	if (!Array.isArray(a)) a = toArray(a);
+	const min = minimum(a);
+	const range = maximum(a) - min;
+	const normalizedRange = range ? range : 0;
+	return divide(subtract(a, min), normalizedRange);
 }
-exports.normalize = normalize;
-exports.norm = normalize;
 
-// Signed Normalize all the values in an array between -1. and 1.
-// The highest value will be 1, the lowest value will be -1.
-//
-// @param {Number/Array} -> input values
-// @return {Number/Array} -> signed normalized values
-// 
-function signedNormalize(a=[0]){
+/**
+ * Normalizes all the values in an array between -1 and 1.
+ * The highest value will be 1, and the lowest value will be -1.
+ *
+ * @param {number | number[]} a - The input value or array.
+ * @returns {number | number[]} The signed normalized value or array.
+ */
+export function signedNormalize(a: number | number[] = [0]): number | number[] {
 	return subtract(multiply(normalize(a), 2), 1);
 }
-exports.signedNormalize = signedNormalize;
-exports.snorm = signedNormalize;
 
-// filter duplicate items from an array
-// does not account for 2-dimensional arrays in the array
-// 
-// @param {Array} -> array to filter
-// @return {Array}
-// 
-function unique(a=[0]){
+/**
+ * Filters duplicate items from an array.
+ * Note: This function flattens 2-dimensional arrays.
+ *
+ * @param {any[]} a - The input array.
+ * @returns {any[]} The array with duplicates removed.
+ */
+export function unique(a: any[] = [0]): any[] {
+	// If the input is a 2D array, flatten it first
+	a = a.reduce((acc, val) => acc.concat(val), []);
 	return [...new Set(toArray(a))];
 }
-exports.unique = unique;
 
-// Plot an array of values to the console in the form of an
-// ascii chart and return chart from function. If you just want the 
-// chart returned as text and not log to console set { log: false }.
-// Using the asciichart package by x84. 
-// 
-// @param {Number/Array/String} -> value to plot
-// @param {Object} -> { log: false } don't log to console and only return
-//                 -> { data: true } log the original array data
-//                 -> { decimals: 2 } adjust the number of decimals
-//                 -> { height: 10 } set a fixed chart line-height
-//                 -> other preferences for padding, colors, offset
-//                    See the asciichart documentation
-// 
-function plot(a=[0], prefs){
-	// if a is not an Array
+/**
+ * Plots an array of values to the console in the form of an ASCII chart.
+ * If you want the chart returned as text instead of logged to the console, set { log: false }.
+ * Uses the asciichart package by x84.
+ *
+ * @param {number | number[] | string} a - The value or array to plot.
+ * @param {PlotConfig} [prefs] - An object containing preferences for the plot.
+ * @param {boolean} [logs.log=true] - Whether to log the chart to the console.
+ * @param {boolean} [logs.data=false] - Whether to log the chart data to the console.
+ * @param {boolean} [logs.decimals=2] - The number of decimal places to display in the chart data.
+ * @param {number} [prefs.height] - The fixed chart line-height in pixels.
+ * @returns {string} The ASCII chart.
+ */
+export function plot(a: number | number[] | string = [0], prefs: PlotConfig = {}, logs: { log: boolean, data: boolean, decimals: number } = { log: true, data: false, decimals: 2 }): string {
 	a = toArray(a);
-	// empty object if no preferences
-	prefs = (typeof prefs !== 'undefined') ? prefs : {};
-
-	prefs.log = (typeof prefs.log !== 'undefined') ? prefs.log : true;
-	prefs.data = (typeof prefs.data !== 'undefined') ? prefs.data : false;
-	prefs.decimals = (typeof prefs.decimals !== 'undefined') ? prefs.decimals : 2;
-
-	let p = chart.plot(a, prefs);
-	if (prefs.data){
-		console.log('chart data: [', a.map(x => x.toFixed(prefs.decimals)).join(", "), "]\n");
-	}
-	if (prefs.log){
-		console.log(chart.plot(a, prefs), "\n");
-	}
+	prefs = typeof prefs !== 'undefined' ? prefs : {};
+	const { decimals, data, log } = logs;
+	const p = asciichart(a, prefs);
+	if (data) console.log('chart data: [', a.map(x => x.toFixed(decimals)).join(', '), ']\n');
+	if (log) console.log(p, '\n');
 	return p;
 }
-exports.plot = plot;
 
-// Draw a 2D-array of values to the console in the form of an
-// ascii gray-scaleimage and return chart from function. 
-// If you just want the chart returned as text and not log to console 
-// set { log: false }. If you want to print using a characterset under 
-// ascii-code 256 use { extend: false }. 
-// 
-// @param {Array/2D-Array} -> values to plot
-// @param {Object} -> { log: false } don't log to console and only return
-//                 -> { extend: true } use extended ascii characters
-//                 -> { error: false } use error character for error reporting
-// 
-function draw(a=[0], prefs){
-	// if a is not an array
-	a = toArray(a);
-	// if a is not an 2d-array
-	a = (Array.isArray(a[0])) ? a : [a];
-
-	// empty object if no preferences
-	prefs = (typeof prefs !== 'undefined') ? prefs : {};
-
-	prefs.log = (typeof prefs.log !== 'undefined') ? prefs.log : true;
-	prefs.extend = (typeof prefs.extend !== 'undefined') ? prefs.extend : true;
-	prefs.error = (typeof prefs.error !== 'undefined') ? prefs.error : false;
-
+/**
+ * Draws a 2D array of values to the console in the form of an ASCII grayscale image.
+ * If you want the image returned as text instead of logged to the console, set { log: false }.
+ * If you want to print using a character set under ASCII code 256, set { extend: false }.
+ *
+ * @param {number[] | number[][]} a - The 2D array of values to draw.
+ * @param {Object} [prefs] - An object containing preferences for the drawing.
+ * @param {boolean} [prefs.log=true] - Whether to log the image to the console.
+ * @param {boolean} [prefs.extend=true] - Whether to use extended ASCII characters.
+ * @param {boolean} [prefs.error=false] - Whether to use an error character for error reporting.
+ * @returns {string} The ASCII grayscale image as a string.
+ */
+export function draw(a: number[] | number[][] = [0], prefs: { log: boolean; extend: boolean; error: boolean; } = { log: true, extend: true, error: false }): string {
+	// If our input is a 1D array, convert it to a 2D array
+	const array2D: number[][] = (Array.isArray(a[0])) ? a : toArray(a);
+	
 	// when using extended ascii set
 	let chars = (prefs.extend) ? ' ░▒▓█'.split('') : ' .-=+#'.split('');
 	// when flagging NaN values
 	let err = (prefs.error) ? ((prefs.extend) ? '�' : '?') : ' ';
 
 	// get the lowest and highest value from input and calculate range
-	let min = Infinity, max = -Infinity;
-	for (let i in a){
-		for (let j in a[i]){
-			min = (a[i][j] < min)? a[i][j] : min;
-			max = (a[i][j] > max)? a[i][j] : max;
-		}
-	}
+	let min = array2D.flat().reduce((acc, val) => Math.min(acc, val), Infinity);
+	let max = array2D.flat().reduce((acc, val) => Math.max(acc, val), -Infinity);
 	let range = max - min;
 
-	// lookup a grayscale ascii value based on normalized array value
-	// use whitespace if value is NaN or 'X' if error flag is true
-	let p = '';
-	for (let i in a){
-		for (let j in a[i]){
-			let grey = Math.trunc((a[i][j] - min) / range * (chars.length-1));
-			let char = (isNaN(grey)) ? err : chars[grey];
-			p += char;
-		}
-		// add linebreak if multiple lines must be printed
-		if (a.length > 1) { p += '\n'; }
-	}
-	if (prefs.log){ console.log(p); }
-	return p;	
+	// Convert the 2D array to a string of ASCII characters
+	const p = array2D.flatMap(row => 
+	  // Map each row to an ASCII character
+	  row.map(val => 
+	    // If the value is NaN or the range is NaN, use the error character
+	    isNaN(val) || isNaN(range) 
+	      ? err 
+	      // Otherwise, look up the ASCII character based on the normalized value
+	      : chars[Math.trunc((val - min) / range * (chars.length - 1))]
+	  ).join('')
+	).join( // Join the rows with a linebreak if multiple lines
+	array2D.length > 1 ? '\n' : ''
+	);
+	if (prefs.log) { console.log(p); }
+	return p;
 }
-exports.draw = draw;
